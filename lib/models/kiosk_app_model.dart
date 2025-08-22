@@ -1,0 +1,184 @@
+import 'package:flutter/foundation.dart';
+import '../services/kiosk_platform_service.dart';
+import '../services/password_service.dart';
+import '../services/preferences_service.dart';
+
+class KioskAppModel extends ChangeNotifier {
+  final KioskPlatformService _platformService = KioskPlatformService();
+  final PasswordService _passwordService = PasswordService();
+  final PreferencesService _preferencesService = PreferencesService();
+
+  bool _isKioskMode = false;
+  bool _isDeviceOwner = false;
+  List<LaunchableApp> _availableApps = [];
+  List<String> _allowedPackages = [];
+  bool _isLoading = false;
+  String? _error;
+
+  bool get isKioskMode => _isKioskMode;
+  bool get isDeviceOwner => _isDeviceOwner;
+  List<LaunchableApp> get availableApps => _availableApps;
+  List<String> get allowedPackages => _allowedPackages;
+  bool get isLoading => _isLoading;
+  String? get error => _error;
+
+  List<LaunchableApp> get allowedApps {
+    return _availableApps.where((app) => _allowedPackages.contains(app.packageName)).toList();
+  }
+
+  Future<void> initialize() async {
+    _setLoading(true);
+    try {
+      await _checkKioskMode();
+      await _checkDeviceOwner();
+      await _loadAvailableApps();
+      await _loadAllowedPackages();
+      _clearError();
+    } catch (e) {
+      _setError('Başlatma hatası: $e');
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  Future<void> enterKioskMode() async {
+    try {
+      if (_isDeviceOwner) {
+        // İzinli paketlere kendi uygulamamızı da ekleyelim
+        final packagesWithSelf = [..._allowedPackages, 'com.erkayteknoloji.securelauncher'];
+        await _platformService.setLockTaskPackages(packagesWithSelf);
+      }
+      await _platformService.startLockTask();
+      
+      // Kiosk moduna geçiş için biraz bekle
+      await Future.delayed(const Duration(milliseconds: 500));
+      await _checkKioskMode();
+      _clearError();
+    } catch (e) {
+      _setError('Kiosk moduna geçilemedi: $e');
+    }
+  }
+
+  Future<bool> exitKioskMode(String password) async {
+    try {
+      final isCorrect = await _passwordService.verifyPassword(password);
+      if (!isCorrect) {
+        _setError('Yanlış şifre');
+        return false;
+      }
+
+      await _platformService.stopLockTask();
+      await _checkKioskMode();
+      _clearError();
+      return true;
+    } catch (e) {
+      _setError('Kiosk modundan çıkılamadı: $e');
+      return false;
+    }
+  }
+
+  Future<void> setPassword(String password) async {
+    try {
+      await _passwordService.setPassword(password);
+      _clearError();
+    } catch (e) {
+      _setError('Şifre ayarlanamadı: $e');
+    }
+  }
+
+  Future<bool> isPasswordSet() async {
+    return await _passwordService.isPasswordSet();
+  }
+
+  Future<void> addAllowedApp(String packageName) async {
+    try {
+      await _preferencesService.addAllowedPackage(packageName);
+      await _loadAllowedPackages();
+
+      // Eğer kiosk moddaysak beyaz listeyi güncelle
+      if (_isDeviceOwner && _isKioskMode) {
+        final packagesWithSelf = [..._allowedPackages, 'com.erkayteknoloji.securelauncher'];
+        await _platformService.setLockTaskPackages(packagesWithSelf);
+      }
+
+      _clearError();
+    } catch (e) {
+      _setError('Uygulama eklenemedi: $e');
+    }
+  }
+
+  Future<void> removeAllowedApp(String packageName) async {
+    try {
+      await _preferencesService.removeAllowedPackage(packageName);
+      await _loadAllowedPackages();
+
+      // Eğer kiosk moddaysak beyaz listeyi güncelle
+      if (_isDeviceOwner && _isKioskMode) {
+        final packagesWithSelf = [..._allowedPackages, 'com.erkayteknoloji.securelauncher'];
+        await _platformService.setLockTaskPackages(packagesWithSelf);
+      }
+
+      _clearError();
+    } catch (e) {
+      _setError('Uygulama çıkarılamadı: $e');
+    }
+  }
+
+
+  Future<void> launchApp(String packageName) async {
+    try {
+      if (kDebugMode) {
+        print('Kiosk Mod: $_isKioskMode, Uygulama: $packageName');
+        print('İzinli Paketler: $_allowedPackages');
+      }
+      
+      final success = await _platformService.launchApp(packageName);
+      if (!success) {
+        _setError('Uygulama başlatılamadı: $packageName');
+      } else {
+        _clearError();
+      }
+    } catch (e) {
+      _setError('Uygulama başlatma hatası: $e');
+    }
+  }
+
+  Future<void> _checkKioskMode() async {
+    _isKioskMode = await _platformService.isLockTaskActive();
+    notifyListeners();
+  }
+
+  Future<void> _checkDeviceOwner() async {
+    _isDeviceOwner = await _platformService.isDeviceOwner();
+    print(_isDeviceOwner);
+    print('_isDeviceOwneraaaaaa');
+    notifyListeners();
+  }
+
+  Future<void> _loadAvailableApps() async {
+    _availableApps = await _platformService.getLaunchableApps();
+    notifyListeners();
+  }
+
+  Future<void> _loadAllowedPackages() async {
+    _allowedPackages = await _preferencesService.getAllowedPackages();
+    notifyListeners();
+  }
+
+
+
+  void _setLoading(bool loading) {
+    _isLoading = loading;
+    notifyListeners();
+  }
+
+  void _setError(String error) {
+    _error = error;
+    notifyListeners();
+  }
+
+  void _clearError() {
+    _error = null;
+    notifyListeners();
+  }
+}
