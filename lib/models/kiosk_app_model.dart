@@ -2,11 +2,13 @@ import 'package:flutter/foundation.dart';
 import '../services/kiosk_platform_service.dart';
 import '../services/password_service.dart';
 import '../services/preferences_service.dart';
+import '../services/master_key_service.dart';
 
 class KioskAppModel extends ChangeNotifier {
   final KioskPlatformService _platformService = KioskPlatformService();
   final PasswordService _passwordService = PasswordService();
   final PreferencesService _preferencesService = PreferencesService();
+  final MasterKeyService _masterKeyService = MasterKeyService();
 
   bool _isKioskMode = false;
   bool _isDeviceOwner = false;
@@ -33,6 +35,17 @@ class KioskAppModel extends ChangeNotifier {
       await _checkDeviceOwner();
       await _loadAvailableApps();
       await _loadAllowedPackages();
+
+      // Boot'tan gelip gelmediğini kontrol et
+      final shouldAutoStart = await _platformService.shouldAutoStartKiosk();
+      final kioskModeEnabled = await _preferencesService.getKioskModeEnabled();
+
+      if (shouldAutoStart && kioskModeEnabled && !_isKioskMode) {
+        // Otomatik olarak kiosk moduna geç
+        await Future.delayed(const Duration(milliseconds: 1000)); // UI hazır olana kadar bekle
+        await _autoEnterKioskMode();
+      }
+
       _clearError();
     } catch (e) {
       _setError('Başlatma hatası: $e');
@@ -49,7 +62,10 @@ class KioskAppModel extends ChangeNotifier {
         await _platformService.setLockTaskPackages(packagesWithSelf);
       }
       await _platformService.startLockTask();
-      
+
+      // Kiosk mode durumunu kaydet
+      await _preferencesService.setKioskModeEnabled(true);
+
       // Kiosk moduna geçiş için biraz bekle
       await Future.delayed(const Duration(milliseconds: 500));
       await _checkKioskMode();
@@ -61,13 +77,32 @@ class KioskAppModel extends ChangeNotifier {
 
   Future<bool> exitKioskMode(String password) async {
     try {
-      final isCorrect = await _passwordService.verifyPassword(password);
+      // Önce normal şifreyi kontrol et
+      bool isCorrect = await _passwordService.verifyPassword(password);
+
+      // Eğer normal şifre yanlışsa, master key'i kontrol et
+      if (!isCorrect) {
+        isCorrect = _masterKeyService.verifyMasterKey(password);
+
+        if (kDebugMode) {
+          print('Normal password failed, checking master key: $isCorrect');
+        }
+      } else {
+        if (kDebugMode) {
+          print('Normal password verified successfully');
+        }
+      }
+
       if (!isCorrect) {
         _setError('Yanlış şifre');
         return false;
       }
 
       await _platformService.stopLockTask();
+
+      // Kiosk mode durumunu temizle
+      await _preferencesService.setKioskModeEnabled(false);
+
       await _checkKioskMode();
       _clearError();
       return true;
@@ -180,5 +215,36 @@ class KioskAppModel extends ChangeNotifier {
   void _clearError() {
     _error = null;
     notifyListeners();
+  }
+
+  Future<void> _autoEnterKioskMode() async {
+    try {
+      if (kDebugMode) {
+        print('Auto entering kiosk mode after boot');
+      }
+
+      if (_allowedPackages.isEmpty) {
+        _setError('İzinli uygulama bulunamadı, kiosk modu otomatik başlatılamadı');
+        return;
+      }
+
+      if (_isDeviceOwner) {
+        final packagesWithSelf = [..._allowedPackages, 'com.erkayteknoloji.securelauncher'];
+        await _platformService.setLockTaskPackages(packagesWithSelf);
+      }
+
+      await _platformService.startLockTask();
+      await Future.delayed(const Duration(milliseconds: 500));
+      await _checkKioskMode();
+
+      if (kDebugMode) {
+        print('Kiosk mode auto started successfully');
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error auto starting kiosk mode: $e');
+      }
+      _setError('Otomatik kiosk modu başlatılamadı: $e');
+    }
   }
 }

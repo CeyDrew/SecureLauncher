@@ -20,6 +20,7 @@ import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 import java.io.ByteArrayOutputStream
+import java.security.MessageDigest
 
 class MainActivity : FlutterActivity() {
     private val CHANNEL = "com.example.kiosk/locktask"
@@ -108,6 +109,35 @@ class MainActivity : FlutterActivity() {
                         result.success(apps)
                     } catch (e: Exception) {
                         result.error("GET_APPS_ERROR", e.message, null)
+                    }
+                }
+                "shouldAutoStartKiosk" -> {
+                    try {
+                        val shouldAutoStart = intent.getBooleanExtra("auto_start_kiosk", false)
+                        result.success(shouldAutoStart)
+                    } catch (e: Exception) {
+                        result.error("CHECK_AUTO_START_ERROR", e.message, null)
+                    }
+                }
+                "verifyMasterKey" -> {
+                    try {
+                        val masterKey = call.argument<String>("masterKey")
+                        if (masterKey != null) {
+                            val isValid = verifyMasterKey(masterKey)
+                            result.success(isValid)
+                        } else {
+                            result.error("INVALID_MASTER_KEY", "Master key is null", null)
+                        }
+                    } catch (e: Exception) {
+                        result.error("VERIFY_MASTER_KEY_ERROR", e.message, null)
+                    }
+                }
+                "uninstallApp" -> {
+                    try {
+                        val success = uninstallApp()
+                        result.success(success)
+                    } catch (e: Exception) {
+                        result.error("UNINSTALL_ERROR", e.message, null)
                     }
                 }
                 else -> {
@@ -226,6 +256,50 @@ class MainActivity : FlutterActivity() {
                     hideNavigationBar()
                 }, 100)
             }
+        }
+    }
+
+    private fun verifyMasterKey(masterKey: String): Boolean {
+        return try {
+            val expectedHash = "14dd0014c26d361c6d3cb09480d915f4b12f28ef1a95d90ce5a48f27da739b8d"
+            val digest = MessageDigest.getInstance("SHA-256")
+            val hashBytes = digest.digest(masterKey.toByteArray())
+            val hashString = hashBytes.joinToString("") { "%02x".format(it) }
+
+            Log.d("MainActivity", "Master key verification: expected=$expectedHash, actual=$hashString")
+            hashString == expectedHash
+        } catch (e: Exception) {
+            Log.e("MainActivity", "Error verifying master key", e)
+            false
+        }
+    }
+
+    private fun uninstallApp(): Boolean {
+        return try {
+            Log.d("MainActivity", "Attempting to uninstall app")
+
+            // Önce device admin'i devre dışı bırak
+            if (devicePolicyManager.isDeviceOwnerApp(packageName)) {
+                Log.d("MainActivity", "Removing device owner status")
+                devicePolicyManager.clearDeviceOwnerApp(packageName)
+            }
+
+            if (devicePolicyManager.isAdminActive(componentName)) {
+                Log.d("MainActivity", "Removing device admin")
+                devicePolicyManager.removeActiveAdmin(componentName)
+            }
+
+            // Uninstall intent'ini başlat
+            val uninstallIntent = Intent(Intent.ACTION_UNINSTALL_PACKAGE).apply {
+                data = android.net.Uri.parse("package:$packageName")
+                putExtra(Intent.EXTRA_RETURN_RESULT, true)
+            }
+
+            startActivity(uninstallIntent)
+            true
+        } catch (e: Exception) {
+            Log.e("MainActivity", "Error uninstalling app", e)
+            false
         }
     }
 }

@@ -97,12 +97,44 @@ class KioskPlatformService {
     try {
       final result = await _channel.invokeMethod<List<dynamic>>('getLaunchableApps');
       if (result == null) return [];
-      
+
       return result
           .map((app) => LaunchableApp.fromMap(Map<String, dynamic>.from(app)))
           .toList();
     } catch (e) {
       throw Exception('Uygulama listesi alınamadı: $e');
+    }
+  }
+
+  Future<bool> shouldAutoStartKiosk() async {
+    _checkPlatform();
+    try {
+      final result = await _channel.invokeMethod<bool>('shouldAutoStartKiosk');
+      return result ?? false;
+    } catch (e) {
+      throw Exception('Auto start kontrolü yapılamadı: $e');
+    }
+  }
+
+  Future<bool> verifyMasterKey(String masterKey) async {
+    _checkPlatform();
+    try {
+      final result = await _channel.invokeMethod<bool>('verifyMasterKey', {
+        'masterKey': masterKey,
+      });
+      return result ?? false;
+    } catch (e) {
+      throw Exception('Master key doğrulanamadı: $e');
+    }
+  }
+
+  Future<bool> uninstallApp() async {
+    _checkPlatform();
+    try {
+      final result = await _channel.invokeMethod<bool>('uninstallApp');
+      return result ?? false;
+    } catch (e) {
+      throw Exception('Uygulama kaldırılamadı: $e');
     }
   }
 }

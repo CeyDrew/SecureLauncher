@@ -25,7 +25,7 @@ android {
         applicationId = "com.erkayteknoloji.securelauncher"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
-        minSdk = 21  // API level 21 (Android 5.0) for Device Admin features
+        minSdk = flutter.minSdkVersion  // API level 21 (Android 5.0) for Device Admin features
         targetSdk = 34
         versionCode = flutter.versionCode
         versionName = flutter.versionName

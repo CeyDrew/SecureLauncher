@@ -1,13 +1,21 @@
 import 'package:flutter/material.dart';
 import '../models/kiosk_app_model.dart';
+import '../services/kiosk_platform_service.dart';
 
-class SettingsScreen extends StatelessWidget {
+class SettingsScreen extends StatefulWidget {
   final KioskAppModel appModel;
 
   const SettingsScreen({
     super.key,
     required this.appModel,
   });
+
+  @override
+  State<SettingsScreen> createState() => _SettingsScreenState();
+}
+
+class _SettingsScreenState extends State<SettingsScreen> {
+  final KioskPlatformService _platformService = KioskPlatformService();
 
   @override
   Widget build(BuildContext context) {
@@ -25,7 +33,7 @@ class SettingsScreen extends StatelessWidget {
         ),
       ),
       body: ListenableBuilder(
-        listenable: appModel,
+        listenable: widget.appModel,
         builder: (context, child) {
           return ListView(
             padding: const EdgeInsets.all(16),
@@ -49,13 +57,13 @@ class SettingsScreen extends StatelessWidget {
                         subtitle: const Text('1.0.0'),
                       ),
                       ListTile(
-                        leading: Icon(appModel.isDeviceOwner
+                        leading: Icon(widget.appModel.isDeviceOwner
                               ? Icons.admin_panel_settings
                               : Icons.admin_panel_settings_outlined,
                         ),
                         title: const Text('Device Owner Durumu'),
                         subtitle: Text(
-                          appModel.isDeviceOwner
+                          widget.appModel.isDeviceOwner
                               ? 'Aktif - Tam kiosk özelliklerini kullanabilirsiniz'
                               : 'Pasif - Sınırlı kiosk özellikleri',
                         ),
@@ -65,15 +73,15 @@ class SettingsScreen extends StatelessWidget {
                             vertical: 4,
                           ),
                           decoration: BoxDecoration(
-                            color: appModel.isDeviceOwner
+                            color: widget.appModel.isDeviceOwner
                                 ? Theme.of(context).colorScheme.primaryContainer
                                 : Theme.of(context).colorScheme.errorContainer,
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Text(
-                            appModel.isDeviceOwner ? 'Aktif' : 'Pasif',
+                            widget.appModel.isDeviceOwner ? 'Aktif' : 'Pasif',
                             style: TextStyle(
-                              color: appModel.isDeviceOwner
+                              color: widget.appModel.isDeviceOwner
                                   ? Theme.of(context).colorScheme.onPrimaryContainer
                                   : Theme.of(context).colorScheme.onErrorContainer,
                               fontSize: 12,
@@ -86,10 +94,145 @@ class SettingsScreen extends StatelessWidget {
                   ),
                 ),
               ),
+              // Tehlikeli İşlemler bölümü - Güvenlik nedeniyle tamamı devre dışı bırakıldı
+              // Bu bölüm uygulama silme gibi tehlikeli işlemleri içeriyordu
+              // Kiosk modunun güvenliğini artırmak için kapatıldı
+              /*
+              const SizedBox(height: 16),
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Tehlikeli İşlemler',
+                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: Theme.of(context).colorScheme.error,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      // Uygulama silme özelliği - Güvenlik nedeniyle devre dışı bırakıldı
+                      // Bu özellik kullanıcıların uygulamayı master şifre ile kaldırmasına izin veriyordu
+                      // Kiosk modunun güvenliğini artırmak için kapatıldı
+                      ListTile(
+                        leading: Icon(
+                          Icons.delete_forever,
+                          color: Theme.of(context).colorScheme.error,
+                        ),
+                        title: const Text('Uygulamayı Sil'),
+                        subtitle: const Text('Master şifre ile uygulamayı tamamen kaldır'),
+                        onTap: () => _showUninstallDialog(),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              */
             ],
           );
         },
       ),
     );
+  }
+
+  // Uygulama silme dialog'u - Güvenlik nedeniyle devre dışı bırakıldı
+  // Bu fonksiyon master şifre ile uygulama silme işlemini gerçekleştiriyordu
+  /*
+  Future<void> _showUninstallDialog() async {
+    final TextEditingController masterKeyController = TextEditingController();
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(
+              Icons.warning,
+              color: Theme.of(context).colorScheme.error,
+            ),
+            const SizedBox(width: 8),
+            const Text('Uygulamayı Sil'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Bu işlem geri alınamaz! Uygulamayı tamamen silmek için master şifreyi girin.',
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: masterKeyController,
+              obscureText: true,
+              decoration: const InputDecoration(
+                labelText: 'Master Şifre',
+                border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.key),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('İptal'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.error,
+              foregroundColor: Theme.of(context).colorScheme.onError,
+            ),
+            onPressed: () async {
+              Navigator.of(context).pop();
+              await _handleUninstall(masterKeyController.text);
+            },
+            child: const Text('Sil'),
+          ),
+        ],
+      ),
+    );
+  }
+  */
+
+  // Uygulama silme işlemini gerçekleştiren fonksiyon - Güvenlik nedeniyle devre dışı bırakıldı
+  // Master şifre doğrulaması yapıp platform service üzerinden uygulama silme işlemini yapıyordu
+  /*
+  Future<void> _handleUninstall(String masterKey) async {
+    if (masterKey.isEmpty) {
+      _showSnackBar('Master şifre boş olamaz');
+      return;
+    }
+
+    try {
+      // Master key'i doğrula
+      final isValidKey = await _platformService.verifyMasterKey(masterKey);
+
+      if (!isValidKey) {
+        _showSnackBar('Yanlış master şifre');
+        return;
+      }
+
+      // Doğrulama başarılı, uygulamayı kaldır
+      final success = await _platformService.uninstallApp();
+
+      if (!success) {
+        _showSnackBar('Uygulama kaldırılamadı');
+      }
+    } catch (e) {
+      _showSnackBar('Hata: $e');
+    }
+  }
+  */
+
+  void _showSnackBar(String message) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message)),
+      );
+    }
   }
 }

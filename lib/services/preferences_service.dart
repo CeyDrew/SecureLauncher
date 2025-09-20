@@ -2,6 +2,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class PreferencesService {
   static const String _allowedPackagesKey = 'allowed_packages';
+  static const String _kioskModeKey = 'kiosk_mode_enabled';
 
   Future<List<String>> getAllowedPackages() async {
     final prefs = await SharedPreferences.getInstance();
@@ -30,5 +31,15 @@ class PreferencesService {
   Future<bool> isPackageAllowed(String packageName) async {
     final packages = await getAllowedPackages();
     return packages.contains(packageName);
+  }
+
+  Future<bool> getKioskModeEnabled() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_kioskModeKey) ?? false;
+  }
+
+  Future<void> setKioskModeEnabled(bool enabled) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_kioskModeKey, enabled);
   }
 }
