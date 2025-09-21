@@ -94,10 +94,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                 ),
               ),
-              // Tehlikeli İşlemler bölümü - Güvenlik nedeniyle tamamı devre dışı bırakıldı
-              // Bu bölüm uygulama silme gibi tehlikeli işlemleri içeriyordu
-              // Kiosk modunun güvenliğini artırmak için kapatıldı
-              /*
               const SizedBox(height: 16),
               Card(
                 child: Padding(
@@ -106,30 +102,26 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Tehlikeli İşlemler',
+                        'Yönetim İşlemleri',
                         style: Theme.of(context).textTheme.titleMedium?.copyWith(
                           fontWeight: FontWeight.bold,
                           color: Theme.of(context).colorScheme.error,
                         ),
                       ),
                       const SizedBox(height: 16),
-                      // Uygulama silme özelliği - Güvenlik nedeniyle devre dışı bırakıldı
-                      // Bu özellik kullanıcıların uygulamayı master şifre ile kaldırmasına izin veriyordu
-                      // Kiosk modunun güvenliğini artırmak için kapatıldı
                       ListTile(
                         leading: Icon(
                           Icons.delete_forever,
                           color: Theme.of(context).colorScheme.error,
                         ),
-                        title: const Text('Uygulamayı Sil'),
-                        subtitle: const Text('Master şifre ile uygulamayı tamamen kaldır'),
+                        title: const Text('Uygulamanın yönetici yetkilerini kaldır'),
+                        subtitle: const Text('Master şifre ile uygulamanın yönetici yetkilerini tamamen kaldır'),
                         onTap: () => _showUninstallDialog(),
                       ),
                     ],
                   ),
                 ),
               ),
-              */
             ],
           );
         },
@@ -137,9 +129,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  // Uygulama silme dialog'u - Güvenlik nedeniyle devre dışı bırakıldı
-  // Bu fonksiyon master şifre ile uygulama silme işlemini gerçekleştiriyordu
-  /*
   Future<void> _showUninstallDialog() async {
     final TextEditingController masterKeyController = TextEditingController();
 
@@ -154,7 +143,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               color: Theme.of(context).colorScheme.error,
             ),
             const SizedBox(width: 8),
-            const Text('Uygulamayı Sil'),
+            const Text('Uygulamanın yönetici yetkilerini kaldır'),
           ],
         ),
         content: Column(
@@ -162,7 +151,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              'Bu işlem geri alınamaz! Uygulamayı tamamen silmek için master şifreyi girin.',
+              'Bu işlem geri alınamaz! Uygulamanın yönetici yetkilerini kaldırmak için master şifreyi girin.',
             ),
             const SizedBox(height: 16),
             TextField(
@@ -190,17 +179,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
               Navigator.of(context).pop();
               await _handleUninstall(masterKeyController.text);
             },
-            child: const Text('Sil'),
+            child: const Text('Kaldır'),
           ),
         ],
       ),
     );
   }
-  */
 
-  // Uygulama silme işlemini gerçekleştiren fonksiyon - Güvenlik nedeniyle devre dışı bırakıldı
-  // Master şifre doğrulaması yapıp platform service üzerinden uygulama silme işlemini yapıyordu
-  /*
   Future<void> _handleUninstall(String masterKey) async {
     if (masterKey.isEmpty) {
       _showSnackBar('Master şifre boş olamaz');
@@ -226,7 +211,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
       _showSnackBar('Hata: $e');
     }
   }
-  */
 
   void _showSnackBar(String message) {
     if (mounted) {

@@ -137,4 +137,24 @@ class KioskPlatformService {
       throw Exception('Uygulama kaldırılamadı: $e');
     }
   }
+
+  Future<bool> setAsHomeApp() async {
+    _checkPlatform();
+    try {
+      final result = await _channel.invokeMethod<bool>('setAsHomeApp');
+      return result ?? false;
+    } catch (e) {
+      throw Exception('Ana ekran uygulaması ayarlanamadı: $e');
+    }
+  }
+
+  Future<bool> clearHomeApp() async {
+    _checkPlatform();
+    try {
+      final result = await _channel.invokeMethod<bool>('clearHomeApp');
+      return result ?? false;
+    } catch (e) {
+      throw Exception('Ana ekran uygulaması ayarı temizlenemedi: $e');
+    }
+  }
 }

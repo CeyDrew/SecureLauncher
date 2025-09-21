@@ -60,6 +60,12 @@ class KioskAppModel extends ChangeNotifier {
         // İzinli paketlere kendi uygulamamızı da ekleyelim
         final packagesWithSelf = [..._allowedPackages, 'com.erkayteknoloji.securelauncher'];
         await _platformService.setLockTaskPackages(packagesWithSelf);
+
+        // Uygulamayı ana ekran uygulaması yap
+        await _platformService.setAsHomeApp();
+        if (kDebugMode) {
+          print('Set as home app when entering kiosk mode');
+        }
       }
       await _platformService.startLockTask();
 
@@ -99,6 +105,14 @@ class KioskAppModel extends ChangeNotifier {
       }
 
       await _platformService.stopLockTask();
+
+      // Ana ekran uygulaması ayarını temizle
+      if (_isDeviceOwner) {
+        await _platformService.clearHomeApp();
+        if (kDebugMode) {
+          print('Cleared home app preference when exiting kiosk mode');
+        }
+      }
 
       // Kiosk mode durumunu temizle
       await _preferencesService.setKioskModeEnabled(false);

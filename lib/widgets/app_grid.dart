@@ -75,7 +75,7 @@ class AppTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return Card(
       child: InkWell(
-        onTap: isKioskMode || isAllowed ? onTap : null,
+        onTap: isKioskMode || isAllowed ? onTap : (onAdd != null ? onAdd : null),
         borderRadius: BorderRadius.circular(12),
         child: Padding(
           padding: const EdgeInsets.all(8),

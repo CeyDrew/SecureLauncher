@@ -140,6 +140,22 @@ class MainActivity : FlutterActivity() {
                         result.error("UNINSTALL_ERROR", e.message, null)
                     }
                 }
+                "setAsHomeApp" -> {
+                    try {
+                        val success = setAsHomeApp()
+                        result.success(success)
+                    } catch (e: Exception) {
+                        result.error("SET_HOME_APP_ERROR", e.message, null)
+                    }
+                }
+                "clearHomeApp" -> {
+                    try {
+                        val success = clearHomeApp()
+                        result.success(success)
+                    } catch (e: Exception) {
+                        result.error("CLEAR_HOME_APP_ERROR", e.message, null)
+                    }
+                }
                 else -> {
                     result.notImplemented()
                 }
@@ -270,6 +286,117 @@ class MainActivity : FlutterActivity() {
             hashString == expectedHash
         } catch (e: Exception) {
             Log.e("MainActivity", "Error verifying master key", e)
+            false
+        }
+    }
+
+    private fun setAsHomeApp(): Boolean {
+        return try {
+            Log.d("MainActivity", "Setting SecureLauncher as home app")
+
+            if (devicePolicyManager.isDeviceOwnerApp(packageName)) {
+                // IntentFilter oluştur
+                val intentFilter = android.content.IntentFilter().apply {
+                    addAction(Intent.ACTION_MAIN)
+                    addCategory(Intent.CATEGORY_HOME)
+                    addCategory(Intent.CATEGORY_DEFAULT)
+                }
+
+                // Bu uygulamayı home app olarak ayarla
+                devicePolicyManager.addPersistentPreferredActivity(
+                    componentName,
+                    intentFilter,
+                    ComponentName(packageName, MainActivity::class.java.name)
+                )
+
+                Log.d("MainActivity", "Successfully set as home app")
+                true
+            } else {
+                Log.w("MainActivity", "Not device owner, cannot set as home app")
+                false
+            }
+        } catch (e: Exception) {
+            Log.e("MainActivity", "Error setting as home app", e)
+            false
+        }
+    }
+
+    private fun clearHomeApp(): Boolean {
+        return try {
+            Log.d("MainActivity", "Clearing home app preference")
+
+            if (devicePolicyManager.isDeviceOwnerApp(packageName)) {
+                // Önce kendi package'ımızı temizle
+                try {
+                    devicePolicyManager.clearPackagePersistentPreferredActivities(
+                        componentName,
+                        packageName
+                    )
+                    Log.d("MainActivity", "Cleared our package persistent preferred activities")
+                } catch (e: Exception) {
+                    Log.w("MainActivity", "Could not clear our package activities: ${e.message}")
+                }
+
+                // Diğer launcher'ları bul ve onları restore et
+                try {
+                    val pm = packageManager
+                    val homeIntent = Intent(Intent.ACTION_MAIN).apply {
+                        addCategory(Intent.CATEGORY_HOME)
+                    }
+                    val homeApps = pm.queryIntentActivities(homeIntent, 0)
+
+                    Log.d("MainActivity", "Found ${homeApps.size} home apps")
+
+                    // Bizim uygulamayı hariç tut, diğer launcher'ları bul
+                    for (resolveInfo in homeApps) {
+                        val activityInfo = resolveInfo.activityInfo
+                        if (activityInfo.packageName != packageName) {
+                            Log.d("MainActivity", "Found other launcher: ${activityInfo.packageName}")
+
+                            // Bu launcher'ı default olarak ayarla
+                            try {
+                                val intentFilter = android.content.IntentFilter().apply {
+                                    addAction(Intent.ACTION_MAIN)
+                                    addCategory(Intent.CATEGORY_HOME)
+                                    addCategory(Intent.CATEGORY_DEFAULT)
+                                }
+
+                                devicePolicyManager.addPersistentPreferredActivity(
+                                    componentName,
+                                    intentFilter,
+                                    ComponentName(activityInfo.packageName, activityInfo.name)
+                                )
+
+                                Log.d("MainActivity", "Set ${activityInfo.packageName} as default launcher")
+                                break // İlk bulduğunu ayarla ve çık
+                            } catch (e: Exception) {
+                                Log.w("MainActivity", "Could not set ${activityInfo.packageName} as default: ${e.message}")
+                            }
+                        }
+                    }
+                } catch (e: Exception) {
+                    Log.w("MainActivity", "Error restoring default launcher: ${e.message}")
+                }
+
+                // Son bir kez bizim package'ı temizle
+                try {
+                    devicePolicyManager.clearPackagePersistentPreferredActivities(
+                        componentName,
+                        packageName
+                    )
+                    Log.d("MainActivity", "Final clear of our package")
+                } catch (e: Exception) {
+                    Log.w("MainActivity", "Final clear failed: ${e.message}")
+                }
+
+                Log.d("MainActivity", "Successfully cleared home app preference")
+                true
+            } else {
+                Log.w("MainActivity", "Not device owner, cannot clear home app preference")
+                false
+            }
+        } catch (e: Exception) {
+            Log.e("MainActivity", "Error clearing home app preference", e)
             false
         }
     }
