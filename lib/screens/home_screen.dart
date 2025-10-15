@@ -8,6 +8,7 @@ import '../widgets/app_grid.dart';
 import '../widgets/password_dialog.dart';
 import '../widgets/update_url_dialog.dart';
 import '../widgets/update_available_dialog.dart';
+import '../widgets/download_progress_dialog.dart';
 import 'settings_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -174,41 +175,49 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _downloadAndInstallUpdate(String packageName, AppUpdateInfo updateInfo) async {
     if (!mounted) return;
 
+    final app = _appModel.availableApps.firstWhere(
+      (app) => app.packageName == packageName,
+      orElse: () => LaunchableApp(
+        packageName: packageName,
+        appName: packageName,
+        iconBytes: Uint8List(0),
+      ),
+    );
+
+    // Progress dialog için GlobalKey kullan
+    final dialogKey = GlobalKey<DownloadProgressDialogState>();
+
     // Progress dialog göster
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (context) {
-        return UpdateAvailableDialog(
-          appName: _appModel.availableApps
-              .firstWhere(
-                (app) => app.packageName == packageName,
-                orElse: () => LaunchableApp(
-                  packageName: packageName,
-                  appName: packageName,
-                  iconBytes: Uint8List(0),
-                ),
-              )
-              .appName,
-          updateInfo: updateInfo,
-          onUpdate: () {},
+        return DownloadProgressDialog(
+          key: dialogKey,
+          appName: app.appName,
+          version: updateInfo.version,
         );
       },
     );
+
+    // Dialog'un render edilmesi için kısa bir bekleme
+    await Future.delayed(const Duration(milliseconds: 100));
 
     // İndirme ve kurulumu başlat
     final success = await _appModel.downloadAndInstallUpdate(
       updateInfo,
       (received, total) {
-        // Progress güncelleme (dialog state'i güncelle)
-        if (mounted) {
-          final dialog = context.findAncestorStateOfType<State<UpdateAvailableDialog>>();
-          if (dialog != null && dialog.widget is UpdateAvailableDialog) {
-            (dialog as dynamic).updateDownloadProgress(received, total);
-          }
-        }
+        // Progress güncelleme
+        dialogKey.currentState?.updateProgress(received, total);
       },
     );
+
+    // Kurulum aşamasına geç
+    if (success) {
+      dialogKey.currentState?.setInstalling(true);
+      // Kurulum bildirimi için 2 saniye bekle
+      await Future.delayed(const Duration(seconds: 2));
+    }
 
     if (mounted) {
       Navigator.of(context).pop(); // Progress dialog'u kapat
