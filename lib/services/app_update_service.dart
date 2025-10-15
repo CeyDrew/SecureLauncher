@@ -127,6 +127,7 @@ class AppUpdateService {
   }
 
   /// APK dosyasını indir (progress callback ile)
+  /// URL .zip uzantılı olsa bile, dosya aslında APK'dır
   Future<String> downloadApk(
     String url,
     void Function(int received, int total)? onProgress,
@@ -134,15 +135,22 @@ class AppUpdateService {
     try {
       final tempDir = await getTemporaryDirectory();
       final timestamp = DateTime.now().millisecondsSinceEpoch;
-      final savePath = '${tempDir.path}/update_$timestamp.apk';
+
+      // Önce .zip olarak indir
+      final zipPath = '${tempDir.path}/update_$timestamp.zip';
 
       await _dio.download(
         url,
-        savePath,
+        zipPath,
         onReceiveProgress: onProgress,
       );
 
-      return savePath;
+      // .zip dosyasını .apk'ya dönüştür (aslında sadece rename)
+      final apkPath = '${tempDir.path}/update_$timestamp.apk';
+      final zipFile = File(zipPath);
+      await zipFile.rename(apkPath);
+
+      return apkPath;
     } catch (e) {
       if (e is DioException) {
         throw Exception('İndirme hatası: ${e.message}');

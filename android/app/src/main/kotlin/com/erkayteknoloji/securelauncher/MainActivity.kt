@@ -466,12 +466,52 @@ class MainActivity : FlutterActivity() {
                 return false
             }
 
+            Log.d("MainActivity", "APK file size: ${file.length()} bytes")
+
             if (devicePolicyManager.isDeviceOwnerApp(packageName)) {
-                // Device Owner olarak sessiz kurulum
+                // Device Owner olarak sessiz kurulum - PackageInstaller kullan
                 Log.d("MainActivity", "Installing APK as device owner (silent install)")
-                val uri = android.net.Uri.fromFile(file)
-                devicePolicyManager.installExistingPackage(componentName, uri.toString())
-                true
+
+                val packageInstaller = packageManager.packageInstaller
+                val params = android.content.pm.PackageInstaller.SessionParams(
+                    android.content.pm.PackageInstaller.SessionParams.MODE_FULL_INSTALL
+                )
+
+                val sessionId = packageInstaller.createSession(params)
+                val session = packageInstaller.openSession(sessionId)
+
+                try {
+                    // APK dosyasını session'a yaz
+                    val outputStream = session.openWrite("package", 0, -1)
+                    val inputStream = java.io.FileInputStream(file)
+
+                    inputStream.copyTo(outputStream)
+                    session.fsync(outputStream)
+
+                    inputStream.close()
+                    outputStream.close()
+
+                    Log.d("MainActivity", "APK written to session successfully")
+
+                    // Kurulumu başlat
+                    val intent = Intent(this, this::class.java)
+                    val pendingIntent = android.app.PendingIntent.getActivity(
+                        this,
+                        0,
+                        intent,
+                        android.app.PendingIntent.FLAG_IMMUTABLE
+                    )
+
+                    session.commit(pendingIntent.intentSender)
+                    session.close()
+
+                    Log.d("MainActivity", "Installation session committed successfully")
+                    true
+                } catch (e: Exception) {
+                    session.abandon()
+                    Log.e("MainActivity", "Error during installation session", e)
+                    false
+                }
             } else {
                 // Normal kurulum intent'i
                 Log.d("MainActivity", "Installing APK with user interaction")
