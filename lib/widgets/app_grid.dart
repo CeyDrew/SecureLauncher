@@ -6,6 +6,7 @@ class AppGrid extends StatelessWidget {
   final Function(String) onAppTap;
   final Function(String)? onAppAdd;
   final Function(String)? onAppRemove;
+  final Function(String)? onUpdateUrlTap;
   final Set<String> allowedPackages;
   final bool isKioskMode;
 
@@ -15,6 +16,7 @@ class AppGrid extends StatelessWidget {
     required this.onAppTap,
     this.onAppAdd,
     this.onAppRemove,
+    this.onUpdateUrlTap,
     required this.allowedPackages,
     required this.isKioskMode,
   });
@@ -47,6 +49,7 @@ class AppGrid extends StatelessWidget {
           onTap: () => onAppTap(app.packageName),
           onAdd: onAppAdd != null ? () => onAppAdd!(app.packageName) : null,
           onRemove: onAppRemove != null ? () => onAppRemove!(app.packageName) : null,
+          onUpdateUrlTap: onUpdateUrlTap != null ? () => onUpdateUrlTap!(app.packageName) : null,
         );
       },
     );
@@ -60,6 +63,7 @@ class AppTile extends StatelessWidget {
   final VoidCallback onTap;
   final VoidCallback? onAdd;
   final VoidCallback? onRemove;
+  final VoidCallback? onUpdateUrlTap;
 
   const AppTile({
     super.key,
@@ -69,6 +73,7 @@ class AppTile extends StatelessWidget {
     required this.onTap,
     this.onAdd,
     this.onRemove,
+    this.onUpdateUrlTap,
   });
 
   @override
@@ -162,11 +167,43 @@ class AppTile extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: isKioskMode || isAllowed 
-                      ? null 
+                  color: isKioskMode || isAllowed
+                      ? null
                       : Colors.grey,
                 ),
               ),
+              if (!isKioskMode && isAllowed && onUpdateUrlTap != null) ...[
+                const SizedBox(height: 4),
+                SizedBox(
+                  height: 24,
+                  child: OutlinedButton(
+                    onPressed: onUpdateUrlTap,
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      minimumSize: const Size(0, 24),
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.link,
+                          size: 12,
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          'URL',
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
             ],
           ),
         ),

@@ -157,4 +157,28 @@ class KioskPlatformService {
       throw Exception('Ana ekran uygulaması ayarı temizlenemedi: $e');
     }
   }
+
+  Future<bool> installApk(String apkPath) async {
+    _checkPlatform();
+    try {
+      final result = await _channel.invokeMethod<bool>('installApk', {
+        'apkPath': apkPath,
+      });
+      return result ?? false;
+    } catch (e) {
+      throw Exception('APK kurulamadı: $e');
+    }
+  }
+
+  Future<String?> getPackageVersion(String packageName) async {
+    _checkPlatform();
+    try {
+      final result = await _channel.invokeMethod<String>('getPackageVersion', {
+        'packageName': packageName,
+      });
+      return result;
+    } catch (e) {
+      throw Exception('Paket versiyonu alınamadı: $e');
+    }
+  }
 }

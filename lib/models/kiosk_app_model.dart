@@ -3,12 +3,14 @@ import '../services/kiosk_platform_service.dart';
 import '../services/password_service.dart';
 import '../services/preferences_service.dart';
 import '../services/master_key_service.dart';
+import '../services/app_update_service.dart';
 
 class KioskAppModel extends ChangeNotifier {
   final KioskPlatformService _platformService = KioskPlatformService();
   final PasswordService _passwordService = PasswordService();
   final PreferencesService _preferencesService = PreferencesService();
   final MasterKeyService _masterKeyService = MasterKeyService();
+  final AppUpdateService _updateService = AppUpdateService();
 
   bool _isKioskMode = false;
   bool _isDeviceOwner = false;
@@ -180,7 +182,7 @@ class KioskAppModel extends ChangeNotifier {
         print('Kiosk Mod: $_isKioskMode, Uygulama: $packageName');
         print('İzinli Paketler: $_allowedPackages');
       }
-      
+
       final success = await _platformService.launchApp(packageName);
       if (!success) {
         _setError('Uygulama başlatılamadı: $packageName');
@@ -189,6 +191,71 @@ class KioskAppModel extends ChangeNotifier {
       }
     } catch (e) {
       _setError('Uygulama başlatma hatası: $e');
+    }
+  }
+
+  // Güncelleme URL'i yönetimi
+  Future<void> setUpdateUrl(String packageName, String url) async {
+    try {
+      if (url.isEmpty) {
+        await _preferencesService.removeUpdateUrl(packageName);
+      } else {
+        await _preferencesService.setUpdateUrl(packageName, url);
+      }
+      _clearError();
+    } catch (e) {
+      _setError('URL kaydedilemedi: $e');
+    }
+  }
+
+  Future<String?> getUpdateUrl(String packageName) async {
+    try {
+      return await _preferencesService.getUpdateUrl(packageName);
+    } catch (e) {
+      return null;
+    }
+  }
+
+  // Güncelleme kontrolü ve kurulumu
+  Future<AppUpdateInfo?> checkAppUpdate(String packageName) async {
+    try {
+      final updateUrl = await _preferencesService.getUpdateUrl(packageName);
+      if (updateUrl == null || updateUrl.isEmpty) {
+        return null;
+      }
+
+      final updateInfo = await _updateService.checkForUpdate(packageName, updateUrl);
+      return updateInfo;
+    } catch (e) {
+      if (kDebugMode) {
+        print('Güncelleme kontrolü hatası: $e');
+      }
+      return null;
+    }
+  }
+
+  Future<bool> downloadAndInstallUpdate(
+    AppUpdateInfo updateInfo,
+    void Function(int, int)? onProgress,
+  ) async {
+    try {
+      // APK'yı indir
+      final apkPath = await _updateService.downloadApk(
+        updateInfo.url,
+        onProgress,
+      );
+
+      // APK'yı kur
+      final success = await _platformService.installApk(apkPath);
+      if (success) {
+        _clearError();
+      } else {
+        _setError('Güncelleme kurulamadı');
+      }
+      return success;
+    } catch (e) {
+      _setError('Güncelleme hatası: $e');
+      return false;
     }
   }
 

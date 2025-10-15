@@ -156,6 +156,32 @@ class MainActivity : FlutterActivity() {
                         result.error("CLEAR_HOME_APP_ERROR", e.message, null)
                     }
                 }
+                "installApk" -> {
+                    try {
+                        val apkPath = call.argument<String>("apkPath")
+                        if (apkPath != null) {
+                            val success = installApk(apkPath)
+                            result.success(success)
+                        } else {
+                            result.error("INVALID_APK_PATH", "APK path is null", null)
+                        }
+                    } catch (e: Exception) {
+                        result.error("INSTALL_APK_ERROR", e.message, null)
+                    }
+                }
+                "getPackageVersion" -> {
+                    try {
+                        val packageName = call.argument<String>("packageName")
+                        if (packageName != null) {
+                            val version = getPackageVersion(packageName)
+                            result.success(version)
+                        } else {
+                            result.error("INVALID_PACKAGE_NAME", "Package name is null", null)
+                        }
+                    } catch (e: Exception) {
+                        result.error("GET_PACKAGE_VERSION_ERROR", e.message, null)
+                    }
+                }
                 else -> {
                     result.notImplemented()
                 }
@@ -427,6 +453,58 @@ class MainActivity : FlutterActivity() {
         } catch (e: Exception) {
             Log.e("MainActivity", "Error uninstalling app", e)
             false
+        }
+    }
+
+    private fun installApk(apkPath: String): Boolean {
+        return try {
+            Log.d("MainActivity", "Installing APK from: $apkPath")
+
+            val file = java.io.File(apkPath)
+            if (!file.exists()) {
+                Log.e("MainActivity", "APK file not found: $apkPath")
+                return false
+            }
+
+            if (devicePolicyManager.isDeviceOwnerApp(packageName)) {
+                // Device Owner olarak sessiz kurulum
+                Log.d("MainActivity", "Installing APK as device owner (silent install)")
+                val uri = android.net.Uri.fromFile(file)
+                devicePolicyManager.installExistingPackage(componentName, uri.toString())
+                true
+            } else {
+                // Normal kurulum intent'i
+                Log.d("MainActivity", "Installing APK with user interaction")
+                val intent = Intent(Intent.ACTION_VIEW).apply {
+                    setDataAndType(
+                        androidx.core.content.FileProvider.getUriForFile(
+                            this@MainActivity,
+                            "$packageName.provider",
+                            file
+                        ),
+                        "application/vnd.android.package-archive"
+                    )
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION
+                }
+                startActivity(intent)
+                true
+            }
+        } catch (e: Exception) {
+            Log.e("MainActivity", "Error installing APK", e)
+            false
+        }
+    }
+
+    private fun getPackageVersion(packageName: String): String? {
+        return try {
+            val packageInfo = packageManager.getPackageInfo(packageName, 0)
+            packageInfo.versionName
+        } catch (e: PackageManager.NameNotFoundException) {
+            Log.e("MainActivity", "Package not found: $packageName")
+            null
+        } catch (e: Exception) {
+            Log.e("MainActivity", "Error getting package version", e)
+            null
         }
     }
 }

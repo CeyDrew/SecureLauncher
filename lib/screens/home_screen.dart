@@ -1,8 +1,13 @@
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 
 import '../models/kiosk_app_model.dart';
+import '../services/kiosk_platform_service.dart';
+import '../services/app_update_service.dart';
 import '../widgets/app_grid.dart';
 import '../widgets/password_dialog.dart';
+import '../widgets/update_url_dialog.dart';
+import '../widgets/update_available_dialog.dart';
 import 'settings_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -77,6 +82,142 @@ class _HomeScreenState extends State<HomeScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(message)),
       );
+    }
+  }
+
+  // URL dialog'unu göster
+  Future<void> _showUpdateUrlDialog(String packageName) async {
+    final app = _appModel.availableApps.firstWhere(
+      (app) => app.packageName == packageName,
+      orElse: () => LaunchableApp(
+        packageName: packageName,
+        appName: packageName,
+        iconBytes: Uint8List(0),
+      ),
+    );
+
+    final currentUrl = await _appModel.getUpdateUrl(packageName);
+
+    if (!mounted) return;
+
+    final url = await showDialog<String>(
+      context: context,
+      builder: (context) => UpdateUrlDialog(
+        packageName: packageName,
+        appName: app.appName,
+        currentUrl: currentUrl,
+      ),
+    );
+
+    if (url != null) {
+      await _appModel.setUpdateUrl(packageName, url);
+      if (mounted) {
+        _showSnackBar(url.isEmpty ? 'URL kaldırıldı' : 'URL kaydedildi');
+      }
+    }
+  }
+
+  // Uygulama başlatmadan önce güncelleme kontrolü yap
+  Future<void> _handleAppLaunch(String packageName) async {
+    // Güncelleme kontrolü
+    final updateInfo = await _appModel.checkAppUpdate(packageName);
+
+    if (updateInfo != null && mounted) {
+      // Güncelleme mevcut
+      if (updateInfo.required) {
+        // Zorunlu güncelleme - direkt indir ve kur
+        await _downloadAndInstallUpdate(packageName, updateInfo);
+      } else {
+        // Opsiyonel güncelleme - kullanıcıya sor
+        await _showUpdateDialog(packageName, updateInfo);
+      }
+    } else {
+      // Güncelleme yok, direkt başlat
+      await _appModel.launchApp(packageName);
+    }
+  }
+
+  // Güncelleme dialogunu göster
+  Future<void> _showUpdateDialog(String packageName, AppUpdateInfo updateInfo) async {
+    final app = _appModel.availableApps.firstWhere(
+      (app) => app.packageName == packageName,
+      orElse: () => LaunchableApp(
+        packageName: packageName,
+        appName: packageName,
+        iconBytes: Uint8List(0),
+      ),
+    );
+
+    if (!mounted) return;
+
+    await showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        return UpdateAvailableDialog(
+          appName: app.appName,
+          updateInfo: updateInfo,
+          onUpdate: () async {
+            Navigator.of(context).pop();
+            await _downloadAndInstallUpdate(packageName, updateInfo);
+          },
+          onCancel: () async {
+            // Güncellemeyi şimdi yap, uygulamayı başlat
+            await _appModel.launchApp(packageName);
+          },
+        );
+      },
+    );
+  }
+
+  // APK'yı indir ve kur
+  Future<void> _downloadAndInstallUpdate(String packageName, AppUpdateInfo updateInfo) async {
+    if (!mounted) return;
+
+    // Progress dialog göster
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        return UpdateAvailableDialog(
+          appName: _appModel.availableApps
+              .firstWhere(
+                (app) => app.packageName == packageName,
+                orElse: () => LaunchableApp(
+                  packageName: packageName,
+                  appName: packageName,
+                  iconBytes: Uint8List(0),
+                ),
+              )
+              .appName,
+          updateInfo: updateInfo,
+          onUpdate: () {},
+        );
+      },
+    );
+
+    // İndirme ve kurulumu başlat
+    final success = await _appModel.downloadAndInstallUpdate(
+      updateInfo,
+      (received, total) {
+        // Progress güncelleme (dialog state'i güncelle)
+        if (mounted) {
+          final dialog = context.findAncestorStateOfType<State<UpdateAvailableDialog>>();
+          if (dialog != null && dialog.widget is UpdateAvailableDialog) {
+            (dialog as dynamic).updateDownloadProgress(received, total);
+          }
+        }
+      },
+    );
+
+    if (mounted) {
+      Navigator.of(context).pop(); // Progress dialog'u kapat
+
+      if (success) {
+        _showSnackBar('Güncelleme kurulumu başlatıldı');
+      } else {
+        _showSnackBar('Güncelleme başarısız oldu');
+      }
     }
   }
 
@@ -276,9 +417,10 @@ class _HomeScreenState extends State<HomeScreen> {
                         apps: appsToShow,
                         allowedPackages: _appModel.allowedPackages.toSet(),
                         isKioskMode: _appModel.isKioskMode,
-                        onAppTap: _appModel.launchApp,
+                        onAppTap: _handleAppLaunch,
                         onAppAdd: _appModel.isKioskMode ? null : _appModel.addAllowedApp,
                         onAppRemove: _appModel.isKioskMode ? null : _appModel.removeAllowedApp,
+                        onUpdateUrlTap: _appModel.isKioskMode ? null : _showUpdateUrlDialog,
                       ),
               ),
             ],
