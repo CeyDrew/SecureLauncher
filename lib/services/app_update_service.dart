@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:package_info_plus/package_info_plus.dart';
+import 'kiosk_platform_service.dart';
 
 class AppUpdateInfo {
   final String version;
@@ -38,6 +38,7 @@ class AppUpdateInfo {
 
 class AppUpdateService {
   final Dio _dio = Dio();
+  final KioskPlatformService _platformService = KioskPlatformService();
 
   /// Güncelleme JSON'ını doğrula
   Future<AppUpdateInfo?> validateUpdateUrl(String url) async {
@@ -90,10 +91,18 @@ class AppUpdateService {
 
       if (updateInfo == null) return null;
 
-      // Mevcut uygulama versiyonunu al
-      PackageInfo packageInfo = await PackageInfo.fromPlatform();
-      String currentVersion = packageInfo.version;
+      // Hedef uygulamanın mevcut versiyonunu al
+      final currentVersion = await _platformService.getPackageVersion(packageName);
 
+      // Eğer uygulama kurulu değilse, güncellemeyi göster (yeni kurulum olarak)
+      if (currentVersion == null) {
+        return updateInfo;
+      }
+
+      print(packageName);
+      print(currentVersion);
+      print(updateInfo.version);
+      print('updateInfo.versionnnnnnnnnnnnnnn');
       // Versiyon karşılaştırması
       if (_isNewerVersion(currentVersion, updateInfo.version)) {
         return updateInfo;
