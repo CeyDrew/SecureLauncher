@@ -175,7 +175,7 @@ class AppTile extends StatelessWidget {
               if (!isKioskMode && isAllowed && onUpdateUrlTap != null) ...[
                 const SizedBox(height: 4),
                 SizedBox(
-                  height: 24,
+                  height: 28,
                   child: OutlinedButton(
                     onPressed: onUpdateUrlTap,
                     style: OutlinedButton.styleFrom(
@@ -188,14 +188,14 @@ class AppTile extends StatelessWidget {
                       children: [
                         Icon(
                           Icons.link,
-                          size: 12,
+                          size: 16,
                           color: Theme.of(context).colorScheme.primary,
                         ),
                         const SizedBox(width: 4),
                         Text(
                           'URL',
                           style: TextStyle(
-                            fontSize: 10,
+                            fontSize: 14,
                             color: Theme.of(context).colorScheme.primary,
                           ),
                         ),

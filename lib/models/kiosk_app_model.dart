@@ -38,12 +38,14 @@ class KioskAppModel extends ChangeNotifier {
       await _loadAvailableApps();
       await _loadAllowedPackages();
 
-      // Boot'tan gelip gelmediğini kontrol et
-      final shouldAutoStart = await _platformService.shouldAutoStartKiosk();
+      // Kiosk mode ayarı aktifse ve şu an kiosk modunda değilse, otomatik başlat
       final kioskModeEnabled = await _preferencesService.getKioskModeEnabled();
 
-      if (shouldAutoStart && kioskModeEnabled && !_isKioskMode) {
+      if (kioskModeEnabled && !_isKioskMode) {
         // Otomatik olarak kiosk moduna geç
+        if (kDebugMode) {
+          print('Kiosk mode was enabled but not active, restarting...');
+        }
         await Future.delayed(const Duration(milliseconds: 1000)); // UI hazır olana kadar bekle
         await _autoEnterKioskMode();
       }
