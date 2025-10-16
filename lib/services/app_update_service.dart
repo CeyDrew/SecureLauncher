@@ -49,7 +49,21 @@ class AppUpdateService {
         throw Exception('URL\'den veri alınamadı: ${response.statusCode}');
       }
 
-      final data = response.data;
+      var data = response.data;
+
+      // Eğer data string ise, önce Base64 decode yap
+      if (data is String) {
+        try {
+          // Base64 decode
+          final decodedBytes = base64.decode(data);
+          final decodedString = utf8.decode(decodedBytes);
+          data = decodedString;
+        } catch (e) {
+          // Base64 decode başarısız olursa, normal JSON olarak devam et
+          // (Geriye uyumluluk için)
+        }
+      }
+
       List<dynamic> updates;
 
       if (data is String) {
@@ -99,10 +113,6 @@ class AppUpdateService {
         return updateInfo;
       }
 
-      print(packageName);
-      print(currentVersion);
-      print(updateInfo.version);
-      print('updateInfo.versionnnnnnnnnnnnnnn');
       // Versiyon karşılaştırması
       if (_isNewerVersion(currentVersion, updateInfo.version)) {
         return updateInfo;
