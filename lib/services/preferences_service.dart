@@ -4,6 +4,7 @@ class PreferencesService {
   static const String _allowedPackagesKey = 'allowed_packages';
   static const String _kioskModeKey = 'kiosk_mode_enabled';
   static const String _updateUrlsKey = 'app_update_urls';
+  static const String _selfUpdateUrlKey = 'self_update_url';
 
   Future<List<String>> getAllowedPackages() async {
     final prefs = await SharedPreferences.getInstance();
@@ -89,5 +90,21 @@ class PreferencesService {
   Future<String?> getUpdateUrl(String packageName) async {
     final urls = await getUpdateUrls();
     return urls[packageName];
+  }
+
+  // SecureLauncher kendi güncellemesi için URL metodları
+  Future<void> setSelfUpdateUrl(String url) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_selfUpdateUrlKey, url);
+  }
+
+  Future<String?> getSelfUpdateUrl() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_selfUpdateUrlKey);
+  }
+
+  Future<void> removeSelfUpdateUrl() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_selfUpdateUrlKey);
   }
 }

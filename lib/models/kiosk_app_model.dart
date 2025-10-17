@@ -218,6 +218,43 @@ class KioskAppModel extends ChangeNotifier {
     }
   }
 
+  // SecureLauncher kendi güncellemesi için metodlar
+  Future<void> setSelfUpdateUrl(String url) async {
+    try {
+      await _preferencesService.setSelfUpdateUrl(url);
+      _clearError();
+    } catch (e) {
+      _setError('URL kaydedilemedi: $e');
+    }
+  }
+
+  Future<String?> getSelfUpdateUrl() async {
+    try {
+      return await _preferencesService.getSelfUpdateUrl();
+    } catch (e) {
+      return null;
+    }
+  }
+
+  Future<AppUpdateInfo?> checkSelfUpdate() async {
+    try {
+      final updateUrl = await _preferencesService.getSelfUpdateUrl();
+      if (updateUrl == null || updateUrl.isEmpty) {
+        return null;
+      }
+
+      // SecureLauncher'ın kendi paket adı
+      const packageName = 'com.erkayteknoloji.securelauncher';
+      final updateInfo = await _updateService.checkForUpdate(packageName, updateUrl);
+      return updateInfo;
+    } catch (e) {
+      if (kDebugMode) {
+        print('SecureLauncher güncelleme kontrolü hatası: $e');
+      }
+      return null;
+    }
+  }
+
   // Güncelleme kontrolü ve kurulumu
   Future<AppUpdateInfo?> checkAppUpdate(String packageName) async {
     try {

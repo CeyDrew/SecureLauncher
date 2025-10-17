@@ -1,4 +1,4 @@
-import 'dart:typed_data';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../models/kiosk_app_model.dart';
@@ -18,23 +18,147 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   late final KioskAppModel _appModel;
   bool _showAllApps = false;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _appModel = KioskAppModel();
     _initializeApp();
   }
 
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+
+    // Uygulama ön plana geldiğinde güncelleme kontrolü yap
+    if (state == AppLifecycleState.resumed) {
+      _checkSelfUpdateOnStartup();
+    }
+  }
+
   Future<void> _initializeApp() async {
     await _appModel.initialize();
-    
+
     if (!await _appModel.isPasswordSet()) {
       if (mounted) {
         _showSetPasswordDialog();
+      }
+    }
+
+    // SecureLauncher için otomatik güncelleme kontrolü
+    _checkSelfUpdateOnStartup();
+  }
+
+  Future<void> _checkSelfUpdateOnStartup() async {
+    try {
+      // URL var mı kontrol et
+      final updateUrl = await _appModel.getSelfUpdateUrl();
+      if (updateUrl == null || updateUrl.isEmpty) {
+        return; // URL yoksa kontrol etme
+      }
+
+      // Güncelleme kontrolü yap
+      final updateInfo = await _appModel.checkSelfUpdate();
+
+      if (updateInfo == null) {
+        return; // Güncelleme yok
+      }
+
+      if (!mounted) return;
+
+      // Güncelleme mevcut
+      if (updateInfo.required) {
+        // Zorunlu güncelleme - direkt indir ve kur
+        await _downloadAndInstallSelfUpdate(updateInfo);
+      } else {
+        // Opsiyonel güncelleme - kullanıcıya sor
+        await _showSelfUpdateDialog(updateInfo);
+      }
+    } catch (e) {
+      // Hata durumunda sessizce devam et, kullanıcıyı rahatsız etme
+      if (kDebugMode) {
+        print('Otomatik güncelleme kontrolü hatası: $e');
+      }
+    }
+  }
+
+  Future<void> _showSelfUpdateDialog(AppUpdateInfo updateInfo) async {
+    if (!mounted) return;
+
+    await showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        return UpdateAvailableDialog(
+          appName: 'SecureLauncher',
+          updateInfo: updateInfo,
+          onUpdate: () async {
+            Navigator.of(context).pop();
+            await _downloadAndInstallSelfUpdate(updateInfo);
+          },
+          onCancel: () {
+            Navigator.of(context).pop();
+          },
+        );
+      },
+    );
+  }
+
+  Future<void> _downloadAndInstallSelfUpdate(AppUpdateInfo updateInfo) async {
+    if (!mounted) return;
+
+    // Progress dialog için GlobalKey kullan
+    final dialogKey = GlobalKey<DownloadProgressDialogState>();
+
+    // Progress dialog göster
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        return DownloadProgressDialog(
+          key: dialogKey,
+          appName: 'SecureLauncher',
+          version: updateInfo.version,
+        );
+      },
+    );
+
+    // Dialog'un render edilmesi için kısa bir bekleme
+    await Future.delayed(const Duration(milliseconds: 100));
+
+    // İndirme ve kurulumu başlat
+    final success = await _appModel.downloadAndInstallUpdate(
+      updateInfo,
+      (received, total) {
+        // Progress güncelleme
+        dialogKey.currentState?.updateProgress(received, total);
+      },
+    );
+
+    // Kurulum aşamasına geç
+    if (success) {
+      dialogKey.currentState?.setInstalling(true);
+      // Kurulum bildirimi için 2 saniye bekle
+      await Future.delayed(const Duration(seconds: 2));
+    }
+
+    if (mounted) {
+      Navigator.of(context).pop(); // Progress dialog'u kapat
+
+      if (success) {
+        _showSnackBar('SecureLauncher güncellemesi kurulumu başlatıldı');
+      } else {
+        _showSnackBar('Güncelleme başarısız oldu');
       }
     }
   }
