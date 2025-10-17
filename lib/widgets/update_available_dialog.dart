@@ -147,7 +147,6 @@ class _UpdateAvailableDialogState extends State<UpdateAvailableDialog> {
               if (!widget.updateInfo.required)
                 TextButton(
                   onPressed: () {
-                    Navigator.of(context).pop();
                     widget.onCancel?.call();
                   },
                   child: const Text('Şimdi Değil'),
