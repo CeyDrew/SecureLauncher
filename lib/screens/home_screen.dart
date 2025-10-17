@@ -287,7 +287,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             await _downloadAndInstallUpdate(packageName, updateInfo);
           },
           onCancel: () async {
-            // Güncellemeyi şimdi yap, uygulamayı başlat
+            Navigator.of(context).pop();
+            // Dialog kapatıldıktan sonra uygulamayı başlat
             await _appModel.launchApp(packageName);
           },
         );
